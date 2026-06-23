@@ -1,0 +1,76 @@
+gcp:
+  project_id: "london-air-quality-pipeline"
+  region: "us-central1"
+  pipeline_root: "gs://air-quality-project/pipeline_root"
+
+bigquery:
+  dataset_id: "world_weather_dataset"
+  table_id: "world_air_quality"
+  predictions_table_id: "predictions_output"
+
+api:
+  api_key: "8899c475f7410636a82b535fdf19e672"
+
+training_pipeline:
+  name: "IP Training Pipeline"
+  root: "gs://air-quality-project/pipeline_root/training"
+  package_path: "training_pipeline.json"
+  use_hyperparameter_tuning: False
+  components:
+    get_data:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+      parameters:
+        gcs_csv_path: "gs://air-quality-project/data/raw_dataset.csv"
+    preprocessing:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+    train_test_data_split:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+      train_cols: "gs://air-quality-project/pipeline_root/data/ip_maj_minor.csv"
+      recalib_params: "gs://air-quality-project/pipeline_root/recalib_params/recalib_params.json"
+    training:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+      parameters:
+        target: "target_value"
+        solver: "lbfgs"
+        max_iter: 1000
+        multi_class: "multinomial"
+    deploy_model:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+      parameters:
+        project_id: "london-air-quality-pipeline"
+        region: "us-central1"
+        model_name: "kfp_lr_model"
+        serving_container_image_uri: "us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest"
+
+prediction_pipeline:
+  name: "Air Quality Batch Prediction Pipeline"
+  root: "gs://air-quality-project/pipeline_root/prediction"
+  package_path: "batch_prediction_pipeline.json"
+  components:
+    get_data:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+      parameters:
+        project_id: "london-air-quality-pipeline"
+        sql_query: "SELECT * FROM `london-air-quality-pipeline.world_weather_dataset.world_air_quality` WHERE update_timestamp >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY);"
+    preprocessing:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+    csv_to_jsonl_component:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+    batch_prediction_component:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+      parameters:
+        project: "london-air-quality-pipeline"
+        region: "us-central1"
+        model_name: "kfp_lr_model"
+        machine_type: "n2-standard-4"
+        job_display_name: "batch_predict_job"
+        instances_format: "jsonl"
+        predictions_format: "jsonl"
+#    merge_predictions_component:
+#      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+    write_to_BQ_component:
+      base_image: us-central1-docker.pkg.dev/london-air-quality-pipeline/air-quality-repo/models/trained-model:latest
+      parameters:
+        project_id: "london-air-quality-pipeline"
+        dataset_id: "world_weather_dataset"
+        table_id: "predictions_output"

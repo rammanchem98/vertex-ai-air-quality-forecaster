@@ -1,0 +1,50 @@
+steps:
+  # =========================================================
+  # PIPELINE 1: INGESTION CONTAINER BUILD & DEPLOY
+  # =========================================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build Ingestion Image'
+    args: [
+        'build',
+        '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/air-quality-repo/ingest-data-job:latest',
+        '-f', 'ingest_pipeline/Dockerfile',
+        '.'
+    ]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push Ingestion Image'
+    args: [
+      'push',
+      'us-central1-docker.pkg.dev/$PROJECT_ID/air-quality-repo/ingest-data-job:latest'
+    ]
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: 'Deploy to Cloud Run Jobs'
+    entrypoint: 'gcloud'
+    args: [
+      'run', 'jobs', 'deploy', 'air-quality-ingest',
+      '--image', 'us-central1-docker.pkg.dev/$PROJECT_ID/air-quality-repo/ingest-data-job:latest',
+      '--region', 'us-central1'
+    ]
+
+  # =========================================================
+  # PIPELINES 2 & 3: MACHINE LEARNING BASE IMAGE BUILD
+  # =========================================================
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Build ML Base Image'
+    args: [
+        'build',
+        '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/air-quality-repo/models/trained-model:latest',
+        '-f', 'Dockerfile',
+        '.'
+    ]
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'Push ML Base Image'
+    args: [
+      'push',
+      'us-central1-docker.pkg.dev/$PROJECT_ID/air-quality-repo/models/trained-model:latest'
+    ]
+
+options:
+  logging: CLOUD_LOGGING_ONLY

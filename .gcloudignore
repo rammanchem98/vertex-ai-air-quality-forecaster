@@ -1,0 +1,18 @@
+# Ignore python virtual environments
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+
+# Ignore local datasets (Cloud Build doesn't need raw_dataset.csv or local Excel logs)
+*.csv
+*.xlsx
+*.png
+
+# Ignore IDE configuration files
+.idea/
+.vscode/
+
+# Ignore local git tracking
+.git/

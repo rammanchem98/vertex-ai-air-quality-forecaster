@@ -1,0 +1,27 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python internal tracking caches
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Local data and pipeline blueprints
+*.json
+*.csv
+*.pkl
+
+# IDE specific settings
+.idea/
+.vscode/
+*.swp
+
+# OS generated system files
+.DS_Store
+Thumbs.db
